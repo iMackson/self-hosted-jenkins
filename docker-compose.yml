@@ -1,0 +1,55 @@
+services:
+
+  jenkins:
+    image: jenkins/jenkins:lts-jdk17
+    container_name: jenkins
+    restart: unless-stopped
+
+    user: root
+
+    environment:
+      JAVA_OPTS: >-
+        -Djenkins.install.runSetupWizard=false
+        -Xms1g
+        -Xmx2g
+        -Djava.awt.headless=true
+
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker
+
+    expose:
+      - "8080"
+
+    networks:
+      - jenkins_net
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  jenkins-agent:
+    image: jenkins/inbound-agent:latest
+    container_name: jenkins-agent-1
+    restart: unless-stopped
+
+    environment:
+      JENKINS_URL: "http://jenkins:8080"
+      JENKINS_AGENT_NAME: "agent-1"
+      JENKINS_SECRET: "REPLACE_WITH_SECRET"
+
+    depends_on:
+      - jenkins
+
+    networks:
+      - jenkins_net
+
+volumes:
+  jenkins_home:
+
+networks:
+  jenkins_net:
+    driver: bridge
