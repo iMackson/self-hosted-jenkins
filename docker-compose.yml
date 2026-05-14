@@ -1,55 +1,45 @@
-services:
+version: '3.8'
 
+# Production-oriented Jenkins Compose configuration.
+# This file is intended as a safer starting point for a production deployment.
+# It removes the insecure root/privileged setup and avoids mounting the Docker socket.
+
+services:
   jenkins:
-    image: jenkins/jenkins:lts-jdk17
+    # image: jenkins/jenkins@sha256:bfa50edb8f9c10b20a3c08e56ea29f7c10ae168d5ba220a78d2c8e5a45823c03
+    image: jenkins/jenkins:lts-jdk21
     container_name: jenkins
     restart: unless-stopped
 
-    user: root
+    # Use the container's default unprivileged Jenkins user instead of root.
+    # The official Jenkins image runs as `jenkins` by default.
+    user: "1000:1000"
 
-    environment:
-      JAVA_OPTS: >-
-        -Djenkins.install.runSetupWizard=false
-        -Xms1g
-        -Xmx2g
-        -Djava.awt.headless=true
+    ports:
+      - "8080:8080"
+      - "50000:50000"
 
     volumes:
       - jenkins_home:/var/jenkins_home
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /usr/bin/docker:/usr/bin/docker
 
-    expose:
-      - "8080"
-
-    networks:
-      - jenkins_net
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2g -Xms1g
+      - JENKINS_OPTS=--prefix=/jenkins
 
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/login"]
       interval: 30s
       timeout: 10s
       retries: 5
-
-  jenkins-agent:
-    image: jenkins/inbound-agent:latest
-    container_name: jenkins-agent-1
-    restart: unless-stopped
-
-    environment:
-      JENKINS_URL: "http://jenkins:8080"
-      JENKINS_AGENT_NAME: "agent-1"
-      JENKINS_SECRET: "REPLACE_WITH_SECRET"
-
-    depends_on:
-      - jenkins
+      start_period: 60s
 
     networks:
-      - jenkins_net
+      - jenkins-net
 
 volumes:
   jenkins_home:
+    driver: local
 
 networks:
-  jenkins_net:
+  jenkins-net:
     driver: bridge
